@@ -1,19 +1,34 @@
 plugins {
-    id 'java'
+	id "com.github.johnrengelman.shadow" version "7.1.2"
+	id 'java'
 }
 
 group = 'com.rumisystem.ai'
 version = '1.0-SNAPSHOT'
 
 repositories {
-    mavenCentral()
+	mavenCentral()
 }
 
 dependencies {
-    testImplementation platform('org.junit:junit-bom:5.9.1')
-    testImplementation 'org.junit.jupiter:junit-jupiter'
+	//WS
+	implementation "org.java-websocket:Java-WebSocket:1.5.1"
+	//JSON
+	implementation("com.fasterxml.jackson.core:jackson-core:2.16.0")
+	implementation("com.fasterxml.jackson.core:jackson-databind:2.16.0")
+	implementation("com.fasterxml.jackson.core:jackson-annotations:2.16.0")
 }
 
 test {
-    useJUnitPlatform()
+	useJUnitPlatform()
+}
+
+jar {
+	manifest {
+		attributes "Main-Class": "com.rumisystem.ai.Main"
+	}
+}
+
+tasks.withType(JavaCompile) {
+	options.encoding = "UTF-8"
 }
