@@ -1,5 +1,7 @@
 type Config = {
 	host: string;
+	WebSocket: number;
+	HTTP: number;
 	serverName?: string;
 	i: string;
 	master?: string;
@@ -25,8 +27,9 @@ type Config = {
 };
 
 import config from '../config.json' with { type: 'json' };
+let ConfigData = config as unknown as Config;
 
-config.wsUrl = config.host.replace('http', 'ws');
-config.apiUrl = config.host + '/api';
+ConfigData.wsUrl = `${config.host.replace("http", "ws")}:${config.WebSocket}`;
+ConfigData.apiUrl = `${config.host}:${config.HTTP}/api`;
 
-export default config as Config;
+export default ConfigData;
