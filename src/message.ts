@@ -8,6 +8,7 @@ import includes from '@/utils/includes.js';
 import or from '@/utils/or.js';
 import config from '@/config.js';
 import { sleep } from '@/utils/sleep.js';
+import type { User } from '@/misskey/user.js';
 
 export default class Message {
 	private ai: 藍;
@@ -61,10 +62,8 @@ export default class Message {
 		this.friend = new Friend(ai, { user: this.user });
 
 		// メッセージなどに付いているユーザー情報は省略されている場合があるので完全なユーザー情報を持ってくる
-		this.ai.api('users/show', {
-			userId: this.userId
-		}).then(user => {
-			this.friend.updateUser(user);
+		this.ai.getUserFromID(this.userId).then(user=>{
+			this.friend.updateUser(user as User);
 		});
 	}
 

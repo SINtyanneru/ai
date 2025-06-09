@@ -97,7 +97,7 @@ const RANDOMTALK_DEFAULT_INTERVAL = 1000 * 60 * 60 * 12;// デフォルトのran
 
 export default class extends Module {
 	public readonly name = 'aichat';
-	private aichatHist: loki.Collection<AiChatHist>;
+	private aichatHist!: loki.Collection<AiChatHist>;
 	private randomTalkProbability: number = RANDOMTALK_DEFAULT_PROBABILITY;
 	private randomTalkIntervalMinutes: number = RANDOMTALK_DEFAULT_INTERVAL;
 

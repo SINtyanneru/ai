@@ -9,6 +9,7 @@ import 藍 from './ai.js';
 import config from './config.js';
 import _log from './utils/log.js';
 import pkg from '../package.json' with { type: 'json' };
+import type { User } from '@/misskey/user.js';
 
 import CoreModule from './modules/core/index.js';
 import TalkModule from './modules/talk/index.js';
@@ -62,7 +63,7 @@ promiseRetry(retry => {
 		json: {
 			i: config.i
 		}
-	}).json().catch(retry);
+	}).json<User>().catch(retry);
 }, {
 	retries: 3
 }).then(account => {

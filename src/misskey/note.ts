@@ -1,3 +1,5 @@
+import type { User } from '@/misskey/user.js';
+
 export type Note = {
 	id: string;
 	text: string | null;
@@ -10,4 +12,8 @@ export type Note = {
 		expiredAfter: number;
 		multiple: boolean;
 	} | null;
+};
+
+export type NoteCreate = {
+	createdNote: Note;
 };
