@@ -8,7 +8,6 @@ import includes from '@/utils/includes.js';
 import or from '@/utils/or.js';
 import config from '@/config.js';
 import { sleep } from '@/utils/sleep.js';
-import type { User } from '@/misskey/user.js';
 
 export default class Message {
 	private ai: 藍;
