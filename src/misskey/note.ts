@@ -4,6 +4,9 @@ export type Note = {
 	id: string;
 	text: string | null;
 	reply: any | null;
+	userId: string;
+	user: User;
+	cw: string | null;
 	poll?: {
 		choices: {
 			votes: number;

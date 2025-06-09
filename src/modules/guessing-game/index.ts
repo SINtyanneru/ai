@@ -7,7 +7,7 @@ import serifs from '@/serifs.js';
 export default class extends Module {
 	public readonly name = 'guessingGame';
 
-	private guesses: loki.Collection<{
+	private guesses!: loki.Collection<{
 		userId: string;
 		secret: number;
 		tries: number[];
@@ -49,7 +49,9 @@ export default class extends Module {
 		});
 
 		msg.reply(serifs.guessingGame.started).then(reply => {
-			this.subscribeReply(msg.userId, reply.id);
+			if (reply != null) {
+				this.subscribeReply(msg.userId, reply.id);
+			}
 		});
 
 		return true;
@@ -83,7 +85,9 @@ export default class extends Module {
 
 		if (guess == null) {
 			msg.reply(serifs.guessingGame.nan).then(reply => {
-				this.subscribeReply(msg.userId, reply.id);
+				if (reply != null) {
+					this.subscribeReply(msg.userId, reply.id);
+				}
 			});
 			return;
 		}
@@ -120,7 +124,7 @@ export default class extends Module {
 		this.guesses.update(exist);
 
 		msg.reply(text).then(reply => {
-			if (!end) {
+			if (!end && reply != null) {
 				this.subscribeReply(msg.userId, reply.id);
 			}
 		});

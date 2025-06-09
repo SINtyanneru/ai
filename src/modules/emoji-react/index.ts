@@ -10,7 +10,7 @@ import { sleep } from '@/utils/sleep.js';
 export default class extends Module {
 	public readonly name = 'emoji-react';
 
-	private htl: ReturnType<Stream['useSharedConnection']>;
+	private htl!: ReturnType<Stream['useSharedConnection']>;
 
 	@bindThis
 	public install() {

@@ -104,7 +104,7 @@ export default class extends Module {
 
 	@bindThis
 	private async timeoutCallback({ title, noteId }) {
-		const note: Note = await this.ai.api('notes/show', { noteId });
+		const note: Note = await this.ai.api('notes/show', { noteId }) as Note;
 
 		const choices = note.poll!.choices;
 

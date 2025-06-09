@@ -4,6 +4,7 @@ import Module from '@/module.js';
 import config from '@/config.js';
 import serifs from '@/serifs.js';
 import { mecab } from './mecab.js';
+import { LocalTL } from '@/misskey/timeline.js';
 
 function kanaToHira(str: string) {
 	return str.replace(/[\u30a1-\u30f6]/g, match => {
@@ -15,7 +16,7 @@ function kanaToHira(str: string) {
 export default class extends Module {
 	public readonly name = 'keyword';
 
-	private learnedKeywords: loki.Collection<{
+	private learnedKeywords!: loki.Collection<{
 		keyword: string;
 		learnedAt: number;
 	}>;
@@ -35,9 +36,9 @@ export default class extends Module {
 
 	@bindThis
 	private async learn() {
-		const tl = await this.ai.api('notes/local-timeline', {
+		const tl:LocalTL = await this.ai.api('notes/local-timeline', {
 			limit: 30
-		});
+		}) as LocalTL;
 
 		const interestedNotes = tl.filter(note =>
 			note.userId !== this.ai.account.id &&
@@ -47,7 +48,8 @@ export default class extends Module {
 		let keywords: string[][] = [];
 
 		for (const note of interestedNotes) {
-			const tokens = await mecab(note.text, config.mecab, config.mecabDic);
+			if (note == null) return;
+			const tokens = await mecab(note.text as string, config.mecab, config.mecabDic);
 			const keywordsInThisNote = tokens.filter(token => token[2] == '固有名詞' && token[8] != null);
 			keywords = keywords.concat(keywordsInThisNote);
 		}

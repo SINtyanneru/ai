@@ -11,7 +11,7 @@ const NOTIFY_INTERVAL = 1000 * 60 * 60 * 12;
 export default class extends Module {
 	public readonly name = 'reminder';
 
-	private reminds: loki.Collection<{
+	private reminds!: loki.Collection<{
 		userId: string;
 		id: string;
 		thing: string | null;
