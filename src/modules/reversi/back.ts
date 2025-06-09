@@ -454,7 +454,7 @@ class Session {
 			try {
 				const res = await got.post(`${config.host}/api/notes/create`, {
 					json: body
-				}).json();
+				}).json() as any;
 
 				return res.createdNote;
 			} catch (e) {
