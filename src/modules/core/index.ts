@@ -85,6 +85,7 @@ export default class extends Module {
 			msg.reply(serifs.core.setNameOk(name));
 		} else {
 			msg.reply(serifs.core.san).then(reply => {
+				if (reply == null) return;
 				this.subscribeReply(msg.userId, reply.id, {
 					name: name
 				});
@@ -143,6 +144,7 @@ export default class extends Module {
 			done();
 		} else {
 			msg.reply(serifs.core.yesOrNo).then(reply => {
+				if (reply == null) return;
 				this.subscribeReply(msg.userId, reply.id, data);
 			});
 		}
