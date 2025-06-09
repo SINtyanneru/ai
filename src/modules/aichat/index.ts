@@ -6,7 +6,6 @@ import config from '@/config.js';
 import Friend from '@/friend.js';
 import urlToBase64 from '@/utils/url2base64.js';
 import urlToJson from '@/utils/url2json.js';
-import got from 'got';
 import loki from 'lokijs';
 
 type AiChat = {
@@ -80,13 +79,25 @@ type UrlPreview = {
 };
 
 type NoteData = {
-	files?: Array<{
+	id: string;
+	text?: string;
+	files?: {
 		type?: string;
 		name?: string;
-		thumbnailUrl?: string;
 		url?: string;
-	}>;
-	text?: string;
+		thumbnailUrl?: string;
+	}[];
+	user?: {
+		id: string;
+		name?: string;
+		username: string;
+		isBot?: boolean;
+	};
+	userId?: string;
+	cw?: string;
+	replyId?: string;
+	renoteId?: string;
+	extractedText?: string;
 };
 
 type TimelineNote = {
@@ -96,7 +107,7 @@ type TimelineNote = {
 	replyId?: string;
 	renoteId?: string;
 	cw?: string;
-	files: any[];
+	files: unknown[];
 	user: {
 		isBot: boolean;
 	};
@@ -260,25 +271,25 @@ export default class extends Module {
 		if (aiChat.grounding) {
 			geminiOptions.tools = [{google_search:{}}];
 		}
-		let options = {
-			url: aiChat.api,
-			searchParams: {
-				key: aiChat.key,
-			},
-			json: geminiOptions,
-		};
+		const url = new URL(aiChat.api);
+		url.searchParams.set('key', aiChat.key);
 
-		this.log(JSON.stringify(options));
+		const response = await fetch(url.toString(), {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify(geminiOptions),
+		});
+
+		this.log(JSON.stringify(geminiOptions));
 		let res_data:any = null;
 		let responseText:string = '';
 		try {
-			res_data = await got.post(aiChat.api, {
-				searchParams: {
-					key: aiChat.key,
-				},
-				json: geminiOptions,
-				parseJson: (res: string) => JSON.parse(res)
-			}).json();
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+			res_data = await response.json();
 			this.log(JSON.stringify(res_data));
 			if (res_data.hasOwnProperty('candidates')) {
 				if (res_data.candidates?.length > 0) {
@@ -336,26 +347,30 @@ export default class extends Module {
 	private async genTextByPLaMo(aiChat: AiChat) {
 		this.log('Generate Text By PLaMo...');
 
-		let options = {
-			headers: {
-				Authorization: 'Bearer ' + aiChat.key
-			},
-			json: {
-				model: 'plamo-beta',
-				messages: [
-					{role: 'system', content: aiChat.prompt},
-					{role: 'user', content: aiChat.question},
-				],
-			},
+		const requestBody = {
+			model: 'plamo-beta',
+			messages: [
+				{role: 'system', content: aiChat.prompt},
+				{role: 'user', content: aiChat.question},
+			],
 		};
-		this.log(JSON.stringify(options));
+
+		this.log(JSON.stringify(requestBody));
 		let res_data:any = null;
 		try {
-			res_data = await got.post(aiChat.api, {
-				headers: options.headers,
-				json: options.json,
-				parseJson: (res: string) => JSON.parse(res)
-			}).json();
+			const response = await fetch(aiChat.api, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': 'Bearer ' + aiChat.key
+				},
+				body: JSON.stringify(requestBody),
+			});
+
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+			res_data = await response.json();
 			this.log(JSON.stringify(res_data));
 			if (res_data.hasOwnProperty('choices')) {
 				if (res_data.choices.length > 0) {
@@ -380,11 +395,12 @@ export default class extends Module {
 		const noteData = await this.ai.api('notes/show', { noteId: notesId }) as NoteData | null;
 		let files:base64File[] = [];
 		let fileType: string | undefined, filelUrl: string | undefined;
-		if (noteData !== null && noteData.files) {
+		if (noteData && noteData.files) {
 			for (let i = 0; i < noteData.files.length; i++) {
-				if (noteData.files[i].type) {
-					fileType = noteData.files[i].type;
-					if (noteData.files[i].name) {
+				const file = noteData.files[i];
+				if (file.type) {
+					fileType = file.type;
+					if (file.name) {
 						// 拡張子で挙動を変えようと思ったが、text/plainしかMisskeyで変になってGemini対応してるものがない？
 						// let extention = noteData.files[i].name.split('.').pop();
 						if (fileType === 'application/octet-stream' || fileType === 'application/xml') {
@@ -392,16 +408,16 @@ export default class extends Module {
 						}
 					}
 				}
-				if (noteData.files[i].thumbnailUrl) {
-					filelUrl = noteData.files[i].thumbnailUrl;
-				} else if (noteData.files[i].url) {
-					filelUrl = noteData.files[i].url;
+				if (file.thumbnailUrl) {
+					filelUrl = file.thumbnailUrl;
+				} else if (file.url) {
+					filelUrl = file.url;
 				}
 				if (fileType !== undefined && filelUrl !== undefined) {
 					try {
 						this.log('filelUrl:'+filelUrl);
-						const file = await urlToBase64(filelUrl);
-						const base64file:base64File = {type: fileType, base64: file};
+						const fileBase64 = await urlToBase64(filelUrl);
+						const base64file:base64File = {type: fileType, base64: fileBase64};
 						files.push(base64file);
 					} catch (err: unknown) {
 						if (err instanceof Error) {
@@ -423,11 +439,11 @@ export default class extends Module {
 		}
 
 		// msg.idをもとにnotes/conversationを呼び出し、会話中のidかチェック
-		const conversationData = await this.ai.api('notes/conversation', { noteId: msg.id });
+		const conversationData = await this.ai.api('notes/conversation', { noteId: msg.id }) as NoteData[] | null;
 
 		// aichatHistに該当のポストが見つかった場合は会話中のためmentionHoonkでは対応しない
 		let exist : AiChatHist | null = null;
-		if (conversationData != undefined && Array.isArray(conversationData)) {
+		if (conversationData) {
 			for (const message of conversationData) {
 				exist = this.aichatHist.findOne({
 					postId: message.id
@@ -469,7 +485,6 @@ export default class extends Module {
 				];
 			}
 		}
-
 		// AIに問い合わせ
 		const result = await this.handleAiChat(current, msg);
 
@@ -487,10 +502,10 @@ export default class extends Module {
 		if (msg.text == null) return false;
 
 		// msg.idをもとにnotes/conversationを呼び出し、該当のidかチェック
-		const conversationData = await this.ai.api('notes/conversation', { noteId: msg.id });
+		const conversationData = await this.ai.api('notes/conversation', { noteId: msg.id }) as NoteData[] | null;
 
 		// 結果がnullやサイズ0の場合は終了
-		if (conversationData == null || !Array.isArray(conversationData) || conversationData.length == 0 ) {
+		if (!conversationData || conversationData.length === 0) {
 			this.log('conversationData is nothing.');
 			return false;
 		}
@@ -538,7 +553,7 @@ export default class extends Module {
 			limit: 30
 		}) as TimelineNote[] | null;
 		
-		if (!tl || !Array.isArray(tl)) return false;
+		if (!tl) return false;
 		
 		const interestedNotes = tl.filter(note =>
 			note.userId !== this.ai.account.id &&
@@ -566,8 +581,8 @@ export default class extends Module {
 		if (exist != null) return false;
 
 		// msg.idをもとにnotes/childrenを呼び出し、会話中のidかチェック
-		const childrenData = await this.ai.api('notes/children', { noteId: choseNote.id });
-		if (childrenData != undefined && Array.isArray(childrenData)) {
+		const childrenData = await this.ai.api('notes/children', { noteId: choseNote.id }) as NoteData[] | null;
+		if (childrenData) {
 			for (const message of childrenData) {
 				exist = this.aichatHist.findOne({
 					postId: message.id
@@ -577,8 +592,8 @@ export default class extends Module {
 		}
 
 		// msg.idをもとにnotes/conversationを呼び出し、会話中のidかチェック
-		const conversationData = await this.ai.api('notes/conversation', { noteId: choseNote.id });
-		if (conversationData != undefined && Array.isArray(conversationData)) {
+		const conversationData = await this.ai.api('notes/conversation', { noteId: choseNote.id }) as NoteData[] | null;
+		if (conversationData) {
 			for (const message of conversationData) {
 				exist = this.aichatHist.findOne({
 					postId: message.id
@@ -610,15 +625,9 @@ export default class extends Module {
 			fromMention: false,		// ランダムトークの場合はfalseとする
 		};
 		// AIに問い合わせ
-		let targetedMessage: Message;
-		if (!choseNote.extractedText) {
-			const data = await this.ai.api('notes/show', { noteId: choseNote.id });
-			targetedMessage = new Message(this.ai, data);
-		} else {
-			// extractedTextが存在する場合は、既存のデータからMessageを作成
-			const data = await this.ai.api('notes/show', { noteId: choseNote.id });
-			targetedMessage = new Message(this.ai, data);
-		}
+		// choseNoteから詳細なノート情報を取得してMessageオブジェクトを作成
+		const data = await this.ai.api('notes/show', { noteId: choseNote.id });
+		const targetedMessage = new Message(this.ai, data);
 		const result = await this.handleAiChat(current, targetedMessage);
 
 		if (result) {
