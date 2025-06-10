@@ -3,7 +3,6 @@
 import * as fs from 'fs';
 import { bindThis } from '@/decorators.js';
 import loki from 'lokijs';
-import got from 'got';
 import { FormData, File } from 'formdata-node';
 import chalk from 'chalk';
 import { v4 as uuid } from 'uuid';
@@ -350,11 +349,16 @@ export default class 藍 {
 		form.set('i', config.i);
 		form.set('file', new File([file], meta.filename, { type: meta.contentType }));
 
-		const res = await got.post({
-			url: `${config.apiUrl}/drive/files/create`,
-			body: form
-		}).json();
-		return res;
+		const response = await fetch(`${config.apiUrl}/drive/files/create`, {
+			method: 'POST',
+			body: form as any
+		});
+		
+		if (!response.ok) {
+			throw new Error(`HTTP error! status: ${response.status}`);
+		}
+		
+		return await response.json();
 	}
 
 	/**
@@ -394,14 +398,30 @@ export default class 藍 {
 	 * APIを呼び出します
 	 */
 	@bindThis
-	public api(endpoint: string, param?: any) {
+	public async api(endpoint: string, param?: any) {
 		this.log(`API: ${endpoint}`);
-		return got.post(`${config.apiUrl}/${endpoint}`, {
-			json: Object.assign({
-				i: config.i
-			}, param)
-		}).json();
-	};
+		
+		try {
+			const response = await fetch(`${config.apiUrl}/${endpoint}`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify(Object.assign({
+					i: config.i
+				}, param))
+			});
+
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+
+			return await response.json();
+		} catch (error) {
+			this.log(chalk.red(`API Error (${endpoint}): ${error}`));
+			throw error;
+		}
+	}
 
 	/**
 	 * コンテキストを生成し、ユーザーからの返信を待ち受けます

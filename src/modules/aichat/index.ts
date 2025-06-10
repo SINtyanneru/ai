@@ -78,42 +78,6 @@ type UrlPreview = {
 	url: string;
 };
 
-type NoteData = {
-	id: string;
-	text?: string;
-	files?: {
-		type?: string;
-		name?: string;
-		url?: string;
-		thumbnailUrl?: string;
-	}[];
-	user?: {
-		id: string;
-		name?: string;
-		username: string;
-		isBot?: boolean;
-	};
-	userId?: string;
-	cw?: string;
-	replyId?: string;
-	renoteId?: string;
-	extractedText?: string;
-};
-
-type TimelineNote = {
-	id: string;
-	userId: string;
-	text?: string;
-	replyId?: string;
-	renoteId?: string;
-	cw?: string;
-	files: unknown[];
-	user: {
-		isBot: boolean;
-	};
-	extractedText?: string;
-};
-
 const KIGO = '&';
 const TYPE_GEMINI = 'gemini';
 const GEMINI_PRO = 'gemini-pro';
@@ -392,7 +356,7 @@ export default class extends Module {
 
 	@bindThis
 	private async note2base64File(notesId: string) {
-		const noteData = await this.ai.api('notes/show', { noteId: notesId }) as NoteData | null;
+		const noteData = await this.ai.api('notes/show', { noteId: notesId });
 		let files:base64File[] = [];
 		let fileType: string | undefined, filelUrl: string | undefined;
 		if (noteData && noteData.files) {
@@ -439,11 +403,11 @@ export default class extends Module {
 		}
 
 		// msg.idをもとにnotes/conversationを呼び出し、会話中のidかチェック
-		const conversationData = await this.ai.api('notes/conversation', { noteId: msg.id }) as NoteData[] | null;
+		const conversationData = await this.ai.api('notes/conversation', { noteId: msg.id });
 
 		// aichatHistに該当のポストが見つかった場合は会話中のためmentionHoonkでは対応しない
 		let exist : AiChatHist | null = null;
-		if (conversationData) {
+		if (conversationData && Array.isArray(conversationData)) {
 			for (const message of conversationData) {
 				exist = this.aichatHist.findOne({
 					postId: message.id
@@ -473,7 +437,7 @@ export default class extends Module {
 		if (msg.quoteId) {
 			const quotedNote = await this.ai.api('notes/show', {
 				noteId: msg.quoteId,
-			}) as NoteData | null;
+			});
 			if (quotedNote && quotedNote.text) {
 				current.history = [
 					{
@@ -502,10 +466,10 @@ export default class extends Module {
 		if (msg.text == null) return false;
 
 		// msg.idをもとにnotes/conversationを呼び出し、該当のidかチェック
-		const conversationData = await this.ai.api('notes/conversation', { noteId: msg.id }) as NoteData[] | null;
+		const conversationData = await this.ai.api('notes/conversation', { noteId: msg.id });
 
 		// 結果がnullやサイズ0の場合は終了
-		if (!conversationData || conversationData.length === 0) {
+		if (!conversationData || !Array.isArray(conversationData) || conversationData.length === 0) {
 			this.log('conversationData is nothing.');
 			return false;
 		}
@@ -551,9 +515,9 @@ export default class extends Module {
 		this.log('AiChat(randomtalk) started');
 		const tl = await this.ai.api('notes/local-timeline', {
 			limit: 30
-		}) as TimelineNote[] | null;
+		});
 		
-		if (!tl) return false;
+		if (!tl || !Array.isArray(tl)) return false;
 		
 		const interestedNotes = tl.filter(note =>
 			note.userId !== this.ai.account.id &&
@@ -581,8 +545,8 @@ export default class extends Module {
 		if (exist != null) return false;
 
 		// msg.idをもとにnotes/childrenを呼び出し、会話中のidかチェック
-		const childrenData = await this.ai.api('notes/children', { noteId: choseNote.id }) as NoteData[] | null;
-		if (childrenData) {
+		const childrenData = await this.ai.api('notes/children', { noteId: choseNote.id });
+		if (childrenData && Array.isArray(childrenData)) {
 			for (const message of childrenData) {
 				exist = this.aichatHist.findOne({
 					postId: message.id
@@ -592,8 +556,8 @@ export default class extends Module {
 		}
 
 		// msg.idをもとにnotes/conversationを呼び出し、会話中のidかチェック
-		const conversationData = await this.ai.api('notes/conversation', { noteId: choseNote.id }) as NoteData[] | null;
-		if (conversationData) {
+		const conversationData = await this.ai.api('notes/conversation', { noteId: choseNote.id });
+		if (conversationData && Array.isArray(conversationData)) {
 			for (const message of conversationData) {
 				exist = this.aichatHist.findOne({
 					postId: message.id
